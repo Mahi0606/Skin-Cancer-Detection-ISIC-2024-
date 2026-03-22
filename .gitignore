@@ -1,0 +1,23 @@
+# Byte-compiled / cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# Virtual environments
+venv/
+.venv/
+env/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# OS / editor
+.DS_Store
+
+# Data (large / local)
+ISIC 2024 Skin Cancer Challenge Dataset/
+
+# Large notebook outputs (> GitHub 100 MB limit — regenerate with 03 / 04)
+outputs/*.pkl

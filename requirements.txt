@@ -1,0 +1,42 @@
+# ============================================================
+# Skin Cancer Detection — ISIC 2024 Challenge
+# Python Dependencies
+# ============================================================
+#
+# Phase 1 (tabular only): numpy → xgboost + viz + jupyter is enough for NB 04/05.
+# PyTorch / timm / h5py: Phase 2 (images + fusion) or any image experiments.
+
+# Core scientific computing
+numpy>=1.24.0
+pandas>=2.0.0
+scipy>=1.10.0
+
+# Machine learning
+scikit-learn>=1.3.0
+# macOS (Homebrew): PyPI LightGBM links to OpenMP — install once: brew install libomp
+lightgbm>=4.0.0
+xgboost>=2.0.0
+
+# Deep learning (PyTorch)
+torch>=2.0.0
+torchvision>=0.15.0
+timm>=0.9.0
+
+# Image processing & augmentation
+albumentations>=1.3.0
+opencv-python-headless>=4.8.0
+Pillow>=10.0.0
+
+# HDF5 support
+h5py>=3.9.0
+
+# Visualization
+matplotlib>=3.7.0
+seaborn>=0.12.0
+
+# Jupyter / Colab
+jupyter>=1.0.0
+tqdm>=4.65.0
+
+# Utilities
+joblib>=1.3.0
