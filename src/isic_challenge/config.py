@@ -11,7 +11,7 @@ class TrainingConfig:
     Notebook 4 hyperparameters.
 
     **Phase 1:** metadata-only LightGBM + XGBoost + tabular blend.
-    **Phase 2 (planned):** image model + fusion; image fields reserved for that track.
+    **Phase 2:** timm CNN on lesion crops + late fusion with tabular OOF (Notebook 6).
     """
 
     seed: int = 42
@@ -25,12 +25,19 @@ class TrainingConfig:
     boost_n_estimators: int = 2000
     boost_log_interval: int = 100
 
-    # Phase 2 — image track
+    # Phase 2 — image track (see Notebook 6 + isic_challenge.image_pipeline)
+    img_model: str = "efficientnet_b0"
     img_size: int = 224
     img_epochs: int = 10
     img_batch_size: int = 64
     img_lr: float = 1e-4
+    img_weight_decay: float = 0.01
     img_num_workers: int = 0
+    img_neg_subsample_fraction: float = 0.12
+    img_early_stop_patience: int = 3
+    img_fusion_grid_steps: int = 101
+    img_show_progress: bool = True
+    img_log_each_epoch: bool = True
 
     def paths(self, root: str) -> dict:
         import os
