@@ -738,6 +738,8 @@ def _build_dataloader(
     num_workers: int,
     pin_memory: bool,
     img_size: int,
+    persistent_workers: bool = False,
+    prefetch_factor: Optional[int] = None,
 ) -> DataLoader:
     ds = IsicDataset(
         df=df,
@@ -746,6 +748,9 @@ def _build_dataloader(
         transform=transform,
         img_size=img_size,
     )
+    # persistent_workers and prefetch_factor are only valid when num_workers > 0
+    _persistent = persistent_workers if num_workers > 0 else False
+    _prefetch   = prefetch_factor    if num_workers > 0 else None
     return DataLoader(
         ds,
         batch_size=batch_size,
@@ -753,6 +758,8 @@ def _build_dataloader(
         num_workers=num_workers,
         pin_memory=pin_memory,
         drop_last=shuffle,  # drop last incomplete batch only during training
+        persistent_workers=_persistent,
+        prefetch_factor=_prefetch,
     )
 
 
@@ -814,6 +821,8 @@ def fit_image_fold(
         num_workers=cfg.img_num_workers,
         pin_memory=cfg.img_pin_memory if torch.cuda.is_available() else False,
         img_size=cfg.img_size,
+        persistent_workers=getattr(cfg, 'img_persistent_workers', False),
+        prefetch_factor=getattr(cfg, 'img_prefetch_factor', None),
     )
     val_loader = _build_dataloader(
         df=val_df,
@@ -825,6 +834,8 @@ def fit_image_fold(
         num_workers=cfg.img_num_workers,
         pin_memory=False,
         img_size=cfg.img_size,
+        persistent_workers=getattr(cfg, 'img_persistent_workers', False),
+        prefetch_factor=getattr(cfg, 'img_prefetch_factor', None),
     )
 
     # ── 4. Model, loss, optimizer, schedule ──────────────────────────────────

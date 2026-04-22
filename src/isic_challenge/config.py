@@ -45,7 +45,7 @@ class TrainingConfig:
 
     # Training
     img_epochs: int = 12
-    img_batch_size: int = 32       # B4 needs more VRAM; halve vs B0
+    img_batch_size: int = 64       # T4/A10G has enough VRAM for B4 at 256px
     img_lr: float = 2e-4           # slightly higher with warmup
     img_weight_decay: float = 0.01
 
@@ -65,8 +65,15 @@ class TrainingConfig:
     img_mixup_alpha: float = 0.4   # MixUp Beta-distribution α; 0 = no mixup
 
     # Data / IO
-    img_num_workers: int = 0
+    # num_workers: CPU worker processes for parallel data loading (not GPUs).
+    # 4 workers keep the GPU fed without over-subscribing Lightning AI CPUs.
+    # persistent_workers: keep worker processes alive between epochs (avoids
+    # fork/join overhead at epoch boundaries, ~5-10s saved per epoch).
+    # prefetch_factor: each worker pre-loads 2 batches ahead of the GPU.
+    img_num_workers: int = 4
     img_pin_memory: bool = True
+    img_persistent_workers: bool = True   # avoids worker restart each epoch
+    img_prefetch_factor: int = 2          # batches prefetched per worker
 
     # Late-fusion (grid search on OOF pAUC) — kept for backward compat
     img_fusion_grid_steps: int = 101
