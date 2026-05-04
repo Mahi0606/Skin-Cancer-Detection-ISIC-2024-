@@ -2,7 +2,8 @@
 
 Phase 1 — LightGBM + XGBoost tabular ensemble (Notebook 4)
 Phase 2 — EfficientNet-B4-NS CNN with focal loss, MixUp, warmup LR (Notebook 6)
-Phase 3 — Multimodal late fusion (Notebook 7, planned)
+Phase 3 — Multimodal hybrid fusion: GBM meta-stacker on
+          [logit(p_tab), logit(p_img), top-K tabular features]  (Notebook 7)
 """
 
 from __future__ import annotations
@@ -77,6 +78,21 @@ class TrainingConfig:
 
     # Late-fusion (grid search on OOF pAUC) — kept for backward compat
     img_fusion_grid_steps: int = 101
+
+    # ── Phase 3 — Multimodal Hybrid Fusion (Notebook 7) ────────────────────────
+    # Linear/rank blends use a 201-step grid; meta-stackers re-use the Phase-1
+    # fold splits stored in model_predictions.pkl so OOF arrays remain aligned.
+    fusion_grid_steps: int = 201
+
+    # GBM meta-stacker
+    fusion_meta_n_estimators: int = 500
+    fusion_meta_learning_rate: float = 0.05
+    fusion_meta_num_leaves: int = 31
+    fusion_top_k_extra_features: int = 5     # top-K tabular features by P1 gain
+
+    # Diagnostics
+    fusion_bootstrap_n: int = 1000           # stratified bootstrap CI on pAUC
+    fusion_subgroup_min_pos: int = 5         # min positives per subgroup level
 
     # Logging
     img_show_progress: bool = True
