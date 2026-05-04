@@ -1,0 +1,277 @@
+# 🎤 Presentation Guide — Slide by Slide
+## presentation_phase2.pdf
+
+Your presentation has **22 slides** across **9 sections**. Here's exactly what to say for each:
+
+---
+
+## Slide 1 — Title Page
+
+**What's on it:** Title, your names (Ankush 230146, Mahendra 230140), course name, date.
+
+**What to say (10 sec):**
+> "Good morning. Our project is on Skin Cancer Detection using the ISIC 2024 Challenge dataset. This is a two-phase approach — combining tabular metadata models with deep learning image models."
+
+---
+
+## Slide 2 — Outline
+
+**What's on it:** Table of contents showing all 9 sections.
+
+**What to say (10 sec):**
+> "Here's our outline. We'll cover the problem, dataset, EDA, then Phase 1 tabular ensemble, Phase 2 CNN architecture, Grad-CAM interpretability, and finally results and future work."
+
+---
+
+## Slide 3 — Problem Statement & Motivation
+
+**What's on it:** Left — bullet points about skin cancer stats. Right — ISIC 2024 challenge block.
+
+**What to say (30 sec):**
+> "Skin cancer is the most common cancer globally — one-third of all diagnosed cancers. Melanoma specifically causes the majority of skin cancer deaths. The key issue is early detection: at Stage I survival is above 99%, but at Stage IV it drops below 30%. There's also limited access to dermatologists, especially in rural areas. 
+>
+> The ISIC 2024 Challenge on Kaggle provides 401,000 lesion records with both 3D Total Body Photography metadata and dermoscopic images. The primary metric is partial AUC above 88% TPR — meaning the model must maintain high sensitivity to catch cancers."
+
+---
+
+## Slide 4 — Dataset Overview
+
+**What's on it:** Left — dataset stats table + alert block on imbalance. Right — feature categories.
+
+**What to say (30 sec):**
+> "The dataset has 401,059 samples from 1,942 patients. The critical challenge is extreme class imbalance — only 393 samples are malignant, that's 0.098%. The ratio is approximately 1:1,020 benign to malignant. A naïve classifier predicting all benign would get 99.9% accuracy but would be clinically useless.
+>
+> Features include patient demographics, anatomical site, and 3D Total Body Photography measurements — colour statistics in RGB, HSV, and L*a*b* colour spaces, spatial ratios, and border complexity. Plus dermoscopic images in HDF5 format."
+
+**If professor asks "Why is accuracy a bad metric?":**
+> "Because with 99.9% benign, you get 99.9% accuracy by predicting all benign. pAUC above 88% TPR forces the model to maintain high recall for the malignant class."
+
+---
+
+## Slide 5 — Exploratory Data Analysis
+
+**What's on it:** Two plots — class distribution and age analysis.
+
+**What to say (20 sec):**
+> "Our EDA revealed several key patterns. The class distribution plot on the left confirms the extreme imbalance. On the right, we see that malignant lesions are more frequent in older patients — age is a discriminative feature. We also found differential prevalence across anatomical sites and sexes, and several TBP colour features showed strong discriminative power."
+
+---
+
+## Slide 6 — Sample Dermoscopic Images
+
+**What's on it:** Grid of sample images from the dataset.
+
+**What to say (15 sec):**
+> "These are representative dermoscopic images from the dataset. You can see visual differences between benign and malignant lesions — differences in colour heterogeneity, border irregularity, and asymmetry. These visual patterns are what motivate the CNN component of our pipeline."
+
+---
+
+## Slide 7 — Feature Engineering (55 → 98)
+
+**What's on it:** Four categories of engineered features with formulas.
+
+**What to say (40 sec):**
+> "In Phase 1, we engineered 43 new features from the 55 raw columns, giving us 98 total features in four categories:
+>
+> **First, ratio features** — we compute lesion-to-skin colour ratios like x_i divided by x_j. These relative contrasts are robust across different skin types.
+>
+> **Second, polynomial interaction features** — products of pairs of features to model non-linear relationships, for example border complexity times colour variation.
+>
+> **Third, per-patient statistical aggregations** — this is the most impactful category. We compute how each lesion deviates from that patient's personal baseline. A 'dark' lesion on a fair-skinned patient has different meaning than on a dark-skinned patient. We calculate z-scores using patient-specific mean and standard deviation.
+>
+> **Fourth, target-encoded categorical features** — anatomical site values encoded using fold-safe target encoding."
+
+**If professor asks "Why fold-safe?":**
+> "If we compute target encoding on the full dataset, the validation set's labels leak into the training features. We compute statistics only on each fold's training set."
+
+---
+
+## Slide 8 — Phase 1 Models & Results
+
+**What's on it:** Left — models description + ensemble formula. Right — results table + ROC curves.
+
+**What to say (40 sec):**
+> "We trained two gradient-boosted tree models. **LightGBM** uses histogram-based leaf-wise tree growth — fast on large datasets. **XGBoost** uses L1+L2 regularised objectives. Both use StratifiedGroupKFold with K=5 by patient ID, and scale_pos_weight of approximately 1020 to handle class imbalance.
+>
+> The ensemble combines both models using pAUC-weighted averaging — the model with higher pAUC gets higher weight.
+>
+> Results: LightGBM achieved AUC 0.821 and pAUC 0.030. XGBoost significantly outperformed at AUC 0.915 and pAUC 0.066. The ensemble gives a slight further improvement to AUC 0.917 and pAUC 0.068. XGBoost's explicit regularisation proved more effective for this extreme imbalance."
+
+---
+
+## Slide 9 — CNN Architecture: EfficientNet-B4-NS
+
+**What's on it:** Left — why B4-NS, head architecture. Right — configuration table.
+
+**What to say (40 sec):**
+> "For Phase 2, we use EfficientNet-B4 with NoisyStudent pretraining. **Why B4?** B0 has only 5.3M parameters — it underfits lesion details at 256×256. B7 has 66M parameters — far too many for only 393 positives, it would just memorise them. B4 at 19.3M is the sweet spot.
+>
+> **Why NoisyStudent?** It's a semi-supervised pretraining approach where a student model is trained on pseudo-labelled data with added noise. This produces more robust, generalisable features that transfer better from ImageNet to the medical domain.
+>
+> The classification head is simple: Global Average Pooling, then Dropout at 0.4, then a single Linear layer outputting a raw logit — no sigmoid — for compatibility with Focal Loss."
+
+**If professor asks "Why no sigmoid?":**
+> "Focal Loss internally computes sigmoid. Using BCEWithLogitsLoss is more numerically stable than applying sigmoid + BCELoss separately."
+
+---
+
+## Slide 10 — Focal Loss
+
+**What's on it:** Left — formula + why not BCE. Right — focal loss curves plot.
+
+**What to say (40 sec):**
+> "Standard Binary Cross-Entropy is dominated by the 400,000 easy benign samples. Focal Loss from Lin et al.'s 2017 RetinaNet paper solves this.
+>
+> The formula is: FL(p_t) = minus alpha_t times (1 - p_t) to the power gamma times log(p_t).
+>
+> The key is the modulating factor **(1 - p_t)^γ** with gamma = 2. When the model is correct on a benign sample with confidence 0.95, p_t = 0.95, and (1-0.95)² = 0.0025 — the loss is reduced by **400 times**. But when the model misclassifies a malignant sample with p_t = 0.1, (1-0.1)² = 0.81 — the full gradient signal is preserved.
+>
+> In the plot on the right, you can see: gamma=0 is standard BCE; as gamma increases, the loss for well-classified examples drops dramatically. We use gamma=2 as recommended by Lin et al."
+
+---
+
+## Slide 11 — Data Augmentation Pipeline
+
+**What's on it:** Left — 9 transforms + MixUp formula. Right — augmentation grid image.
+
+**What to say (30 sec):**
+> "We built a 9-transform pipeline using Albumentations, each justified for dermoscopy. Flips — because lesions have no orientation. ShiftScaleRotate — simulating camera positioning. BrightnessContrast and HueSaturation — for scanner variation. CoarseDropout — forces the model to spread attention rather than fixating on one small region. GaussianBlur and GridDistortion for optical artefacts.
+>
+> Additionally, MixUp blends pairs of images with lambda drawn from Beta(0.4, 0.4), acting as a label-space regulariser critical when training on only 393 positives."
+
+---
+
+## Slide 12 — Learning Rate Schedule
+
+**What's on it:** Left — warmup + cosine annealing explanation. Right — LR schedule plot.
+
+**What to say (25 sec):**
+> "The learning rate follows two phases. **Linear warmup** for the first epoch — LR ramps from zero to 2×10⁻⁴. This prevents the randomly initialised classification head from corrupting the pretrained backbone with large initial gradients.
+>
+> Then **cosine annealing** from epoch 2 to 12 — LR smoothly decays to 2×10⁻⁶, which is 1% of the base. The cosine curve avoids abrupt drops and gives better convergence than step decay."
+
+---
+
+## Slide 13 — Negative Subsampling & CV Alignment
+
+**What's on it:** Left — subsampling strategy. Right — CV alignment + data format.
+
+**What to say (25 sec):**
+> "Training on all 400k images is computationally prohibitive. So we keep only **12% of benign samples** per fold — about 48,000 — while keeping all 393 positives. This is combined with pos_weight in Focal Loss. Importantly, subsampling applies **only to the training set** — the full validation set is always used.
+>
+> Crucially, we use the **same GroupKFold splits as Phase 1**. This ensures fair OOF comparison and enables proper late fusion without information leakage."
+
+---
+
+## Slide 14 — MixUp in Practice
+
+**What's on it:** Left — MixUp visualisation image. Right — formula and details.
+
+**What to say (20 sec):**
+> "Here you can see MixUp in practice — pairs of training images are blended with coefficient lambda. The loss is also blended: lambda times loss on label A plus (1-lambda) times loss on label B. This smooths the decision boundary and acts as an implicit data augmentation, creating virtual training examples in the convex hull of the data distribution."
+
+---
+
+## Slide 15 — Grad-CAM Theory
+
+**What's on it:** Left — algorithm steps. Right — clinical value.
+
+**What to say (30 sec):**
+> "Grad-CAM from Selvaraju et al. produces saliency maps showing which image regions drove the prediction. The algorithm: we do a forward pass to get feature map activations A^k, then backward pass to get gradients. We global-average-pool the gradients to get importance weights alpha_k, then compute a weighted sum of feature maps passed through ReLU.
+>
+> The clinical value is threefold: verifying the model looks at lesion regions not artefacts, identifying failure modes, and building clinician trust."
+
+---
+
+## Slide 16 — Grad-CAM Visualisations (NEW)
+
+**What's on it:** Actual Grad-CAM images from trained model — true predictions and failure cases.
+
+**What to say (25 sec):**
+> "Here are the actual Grad-CAM outputs from our trained CNN. On the left, true predictions with overlaid saliency. On the right, failure cases. The observation is that the CNN produces diffuse, ring-shaped attention rather than focused lesion-specific saliency. This indicates the model did not learn fine-grained discriminative features for distinguishing malignant from benign."
+
+---
+
+## Slide 17 — Late Fusion
+
+**What's on it:** Fusion formula, grid search strategy, why late fusion.
+
+**What to say (25 sec):**
+> "Late fusion combines the two modalities: y_final = alpha times tabular OOF plus (1-alpha) times CNN OOF. Alpha is optimised via grid search over 101 steps, maximising pAUC on the out-of-fold predictions. Because both modalities use the same CV folds, this introduces no information leakage.
+>
+> We chose late fusion because the two modalities have complementary signals — tabular captures patient risk factors and colour statistics, while CNN captures spatial texture patterns — and each can use its own optimal architecture."
+
+---
+
+## Slide 18 — Results Table (KEY SLIDE)
+
+**What's on it:** Results table with all models + ROC comparison plot.
+
+**What to say (30 sec):**
+> "Here are the combined results. Phase 1: LightGBM at AUC 0.821, XGBoost at 0.915, tabular ensemble at **0.917 AUC and 0.068 pAUC**. Phase 2: CNN alone at **0.78 AUC and 0.02 pAUC**.
+>
+> The CNN is significantly weaker than the tabular ensemble. With only 393 positive images among 401,000 total and extreme 1:1,020 imbalance, the CNN struggled to learn discriminative visual features. The tabular ensemble remains the dominant modality — the rich 3D-TBP metadata already encodes colour and border statistics that gradient boosted trees exploit very effectively."
+
+---
+
+## Slide 19 — CNN Confusion Matrix & Score Analysis
+
+**What's on it:** Confusion matrix + score distribution + why CNN struggled.
+
+**What to say (25 sec):**
+> "The confusion matrix and score distribution confirm the CNN's difficulty. The score distribution shows limited separation between benign and malignant predictions. The main reasons: extreme data scarcity with only 393 positives, subtle visual differences between classes in dermoscopy, and the domain gap from ImageNet to medical imaging."
+
+---
+
+## Slide 20 — Analysis & Key Insights
+
+**What's on it:** Left — why tabular dominates. Right — lessons from CNN.
+
+**What to say (30 sec):**
+> "Why does tabular dominate? The 3D-TBP metadata already encodes colour, size, and border statistics in numerical form — exactly what gradient-boosted trees excel at. Feature engineering captured non-linear and per-patient relationships.
+>
+> Key lesson from Phase 2: 393 positives are insufficient for CNN training at 1:1,020 imbalance, even with Focal Loss, MixUp, and subsampling. However, the pipeline infrastructure — CV alignment, HDF5 loading, late fusion — is fully built and ready for future improvements with more data."
+
+---
+
+## Slide 21 — Pipeline Architecture
+
+**What's on it:** Full TikZ pipeline diagram showing both branches merging at fusion.
+
+**What to say (20 sec):**
+> "This diagram shows our end-to-end pipeline. From the ISIC 2024 dataset, the left branch does feature engineering then LightGBM and XGBoost into a tabular ensemble. The right branch does augmentation and MixUp then EfficientNet-B4-NS into CNN OOF scores. Both branches meet at late fusion: alpha times tabular plus (1-alpha) times CNN, optimised on pAUC."
+
+---
+
+## Slide 22 — Conclusion & Future Work
+
+**What's on it:** Three blocks: Phase 1 summary, Phase 2 summary, future directions.
+
+**What to say (30 sec):**
+> "To conclude: **Phase 1** built a strong tabular baseline — 55 to 98 features, pAUC-weighted ensemble, AUC 0.917. **Phase 2** implemented the complete CNN pipeline with EfficientNet-B4-NS, Focal Loss, MixUp, warmup-cosine LR, and Grad-CAM, achieving AUC 0.78 — lower than tabular due to extreme positive scarcity.
+>
+> **Future directions** to improve the CNN: external pretraining on larger dermatology datasets like ISIC 2019/2020, aggressive positive oversampling, contrastive or self-supervised pretraining like SimCLR or DINO, and multi-task learning predicting lesion attributes as auxiliary objectives."
+
+> **"Thank you! Any questions?"**
+
+---
+
+## Common Professor Questions & Answers
+
+### Q: "Why not use SMOTE or other oversampling for the tabular models?"
+> "We experimented with majority subsampling via `majority_subsample_fraction` in our config, but found that using all training rows with `scale_pos_weight=1020` worked better. SMOTE creates synthetic samples in feature space which can introduce noise with high-dimensional features. The gradient-boosted trees handle imbalance natively through the class weighting."
+
+### Q: "Why GroupKFold instead of regular StratifiedKFold?"
+> "Patients have multiple lesions — up to hundreds. If patient A's lesions appear in both train and validation, the model memorises patient-specific characteristics rather than learning general lesion features. GroupKFold ensures all of one patient's lesions stay in the same fold, preventing this data leakage."
+
+### Q: "Why did you choose pAUC as the metric?"
+> "It's the official ISIC 2024 competition metric. Clinically, missing a melanoma — a false negative — is far more dangerous than a false positive. pAUC above 88% TPR focuses evaluation on the high-sensitivity zone where the model must catch at least 88% of cancers."
+
+### Q: "Could you use a Vision Transformer instead of EfficientNet?"
+> "Yes, ViTs like DeiT or Swin Transformer could be used. However, ViTs typically need more training data to outperform CNNs. With only 393 positives, an inductive-bias-rich architecture like EfficientNet (with its convolutional priors) is a safer choice. ViTs would be more promising with external pre-training on larger dermatology corpora."
+
+### Q: "What is the difference between AUC and pAUC?"
+> "AUC is the area under the full ROC curve — it measures discrimination across all thresholds. pAUC restricts this to only the region where TPR ≥ 88%. In clinical settings, we only care about the high-sensitivity operating region, so pAUC is more relevant."
+
+### Q: "Why is the CNN weaker than the tabular model?"
+> "Three reasons: (1) the tabular features already encode the discriminative colour and border statistics in numerical form — trees exploit this directly. (2) 393 positive images are genuinely too few for a CNN to learn subtle dermoscopic patterns. (3) The domain gap from ImageNet to medical imaging reduces the value of transfer learning."
