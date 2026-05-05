@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DermAssist | Skin Cancer Detection</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+    <div class="page-wrapper">
+        <header class="main-header">
+            <div class="header-container">
+                <div class="logo">
+                    <span class="logo-icon">⛑</span>
+                    <h1>DermAssist <span>AI</span></h1>
+                </div>
+                <nav class="nav-links">
+                    <a href="#" class="active">Analyze</a>
+                    <a href="#">About Model</a>
+                </nav>
+            </div>
+        </header>
+
+        <main class="content-container">
+            <section class="hero-section">
+                <h2>AI-Powered Skin Lesion Analysis</h2>
+                <p>Upload a dermoscopic image for analysis. Scores come from our trained <strong>image</strong> model (EfficientNet-B4-NS, 5-fold ensemble). The full competition pipeline also fuses patient metadata; this demo uses images only.</p>
+            </section>
+
+            <div class="app-layout">
+                <!-- Upload Area -->
+                <div class="card upload-card">
+                    <div class="upload-header">
+                        <h3>Image Upload</h3>
+                        <p class="subtitle">Supports JPG, PNG (Max 10MB)</p>
+                    </div>
+                    
+                    <div class="upload-dropzone" id="dropzone">
+                        <input type="file" id="file-input" accept="image/jpeg, image/png, image/jpg" hidden>
+                        <div class="dropzone-content" id="dropzone-content">
+                            <div class="upload-icon">
+                                <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                                    <polyline points="17 8 12 3 7 8"></polyline>
+                                    <line x1="12" y1="3" x2="12" y2="15"></line>
+                                </svg>
+                            </div>
+                            <span class="upload-text">Drag & drop your image here</span>
+                            <span class="upload-subtext">or</span>
+                            <button class="btn btn-outline" id="browse-btn">Browse Files</button>
+                        </div>
+                        <img id="image-preview" class="image-preview hidden" alt="Image preview">
+                    </div>
+
+                    <div class="action-bar">
+                        <button class="btn btn-primary btn-block" id="analyze-btn" disabled>
+                            <span class="btn-text">Analyze Image</span>
+                            <span class="loader hidden"></span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Results Area -->
+                <div class="card results-card" id="results-panel">
+                    <div class="results-placeholder" id="results-placeholder">
+                        <div class="placeholder-icon">
+                            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                                <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                                <circle cx="8.5" cy="8.5" r="1.5"></circle>
+                                <polyline points="21 15 16 10 5 21"></polyline>
+                            </svg>
+                        </div>
+                        <p>Awaiting image upload for analysis</p>
+                    </div>
+
+                    <div class="results-content hidden" id="results-content">
+                        <h3>Analysis Results</h3>
+                        
+                        <div class="prediction-box" id="prediction-box">
+                            <h4 id="prediction-label">Benign</h4>
+                            <p class="prediction-subtitle">Diagnosis prediction</p>
+                        </div>
+
+                        <div class="confidence-section">
+                            <div class="confidence-header">
+                                <span>Model Confidence</span>
+                                <span id="confidence-value">0%</span>
+                            </div>
+                            <div class="progress-bar-bg">
+                                <div class="progress-bar-fill" id="confidence-bar"></div>
+                            </div>
+                        </div>
+
+                        <div class="disclaimer-alert">
+                            <div class="alert-icon">⚠️</div>
+                            <div class="alert-text">
+                                <strong>For Research Purposes Only</strong>
+                                <p>This AI tool is not a substitute for professional medical advice, diagnosis, or treatment.</p>
+                            </div>
+                        </div>
+
+                        <button class="btn btn-outline btn-block mt-4" id="reset-btn">Analyze Another Image</button>
+                    </div>
+                </div>
+            </div>
+        </main>
+        
+        <footer class="main-footer">
+            <p>&copy; 2026 DermAssist AI. Powered by ISIC 2024 Dataset.</p>
+        </footer>
+    </div>
+
+    <script src="/static/js/main.js"></script>
+</body>
+</html>
