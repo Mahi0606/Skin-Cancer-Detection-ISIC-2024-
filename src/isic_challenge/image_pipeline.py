@@ -738,8 +738,6 @@ def _build_dataloader(
     num_workers: int,
     pin_memory: bool,
     img_size: int,
-    persistent_workers: bool = False,
-    prefetch_factor: Optional[int] = None,
 ) -> DataLoader:
     ds = IsicDataset(
         df=df,
@@ -748,9 +746,6 @@ def _build_dataloader(
         transform=transform,
         img_size=img_size,
     )
-    # persistent_workers and prefetch_factor are only valid when num_workers > 0
-    _persistent = persistent_workers if num_workers > 0 else False
-    _prefetch   = prefetch_factor    if num_workers > 0 else None
     return DataLoader(
         ds,
         batch_size=batch_size,
@@ -758,8 +753,6 @@ def _build_dataloader(
         num_workers=num_workers,
         pin_memory=pin_memory,
         drop_last=shuffle,  # drop last incomplete batch only during training
-        persistent_workers=_persistent,
-        prefetch_factor=_prefetch,
     )
 
 
@@ -821,8 +814,6 @@ def fit_image_fold(
         num_workers=cfg.img_num_workers,
         pin_memory=cfg.img_pin_memory if torch.cuda.is_available() else False,
         img_size=cfg.img_size,
-        persistent_workers=getattr(cfg, 'img_persistent_workers', False),
-        prefetch_factor=getattr(cfg, 'img_prefetch_factor', None),
     )
     val_loader = _build_dataloader(
         df=val_df,
@@ -834,8 +825,6 @@ def fit_image_fold(
         num_workers=cfg.img_num_workers,
         pin_memory=False,
         img_size=cfg.img_size,
-        persistent_workers=getattr(cfg, 'img_persistent_workers', False),
-        prefetch_factor=getattr(cfg, 'img_prefetch_factor', None),
     )
 
     # ── 4. Model, loss, optimizer, schedule ──────────────────────────────────
@@ -1053,6 +1042,7 @@ def run_image_cv(
     paths: Dict[str, str],
     device: Optional[torch.device] = None,
     verbose: bool = True,
+    skip_folds: Optional[List[int]] = None,
 ) -> Dict[str, Any]:
     """
     Run full K-fold cross-validation for the image model.
@@ -1077,6 +1067,8 @@ def run_image_cv(
 
     if device is None:
         device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    if skip_folds is None:
+        skip_folds = []
 
     img_oof = np.zeros(len(df), dtype=np.float64)
     fold_results: List[Dict] = []
@@ -1088,6 +1080,58 @@ def run_image_cv(
     )
 
     for fold, (train_idx, val_idx) in fold_bar:
+
+        if fold in skip_folds:
+            print(f"⏭️ Skipping fold {fold+1}/{cfg.n_folds} (already trained)")
+            
+            ckpt_path = os.path.join(
+                paths.get("model_dir", "outputs/models"),
+                f"phase2_{cfg.img_model}_fold{fold}.pt",
+            )
+            ckpt = torch.load(ckpt_path, map_location=device)
+
+            model = EfficientNetClassifier(
+                model_name=ckpt["cfg_model"],
+                pretrained=False,
+                dropout=0.4,
+            ).to(device)
+            model.load_state_dict(ckpt["model_state_dict"])
+            model.eval()
+
+            val_df = df.iloc[val_idx].reset_index(drop=True)
+            val_loader = _build_dataloader(
+                df=val_df,
+                hdf5_path=paths.get("train_hdf5"),
+                img_dir=paths.get("train_img_dir"),
+                transform=get_val_transforms(ckpt.get("cfg_img_size", cfg.img_size)),
+                batch_size=cfg.img_batch_size * 2,
+                shuffle=False,
+                num_workers=cfg.img_num_workers,
+                pin_memory=False,
+                img_size=ckpt.get("cfg_img_size", cfg.img_size),
+            )
+
+            oof_logits = []
+            with torch.no_grad():
+                for images, _, _ in val_loader:
+                    images = images.to(device, non_blocking=True)
+                    logits = model(images)
+                    oof_logits.extend(logits.cpu().float().numpy().tolist())
+
+            oof_preds = torch.sigmoid(torch.tensor(oof_logits)).numpy()
+            img_oof[val_idx] = oof_preds  # ← fills the zeros for skipped folds
+
+            fold_results.append({
+                "oof_preds": oof_preds,
+                "val_pAUC": ckpt.get("best_pAUC", float("nan")),
+                "val_AUC": float("nan"),   # not stored in ckpt, acceptable
+                "history": [],
+                "best_epoch": ckpt.get("best_epoch", -1),
+                "n_train": -1,
+                "n_val": len(val_idx),
+            })
+            continue
+
         train_df = df.iloc[train_idx].reset_index(drop=True)
         val_df = df.iloc[val_idx].reset_index(drop=True)
 
@@ -1189,12 +1233,21 @@ def plot_learning_curves(
     """
     import matplotlib.pyplot as plt
 
+    # ADD: filter out skipped folds with empty history
+    active_results = [res for res in fold_results if res.get("history")]
+    
+    if not active_results:
+        print("No training history available to plot.")
+        fig, ax = plt.subplots()
+        ax.text(0.5, 0.5, "No history available", ha="center", va="center")
+        return fig
+
     fig, axes = plt.subplots(1, 3, figsize=(18, 5))
     cmap = plt.cm.tab10
 
     pauc_curves = []
 
-    for i, res in enumerate(fold_results):
+    for i, res in enumerate(active_results):
         hist = res["history"]
         epochs = [h["epoch"] for h in hist]
         train_loss = [h["train_loss"] for h in hist]
