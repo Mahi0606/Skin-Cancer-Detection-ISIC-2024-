@@ -21,3 +21,9 @@ ISIC 2024 Skin Cancer Challenge Dataset/
 
 # Large notebook outputs (> GitHub 100 MB limit — regenerate with 03 / 04)
 outputs/*.pkl
+
+# Trained models
+outputs/models/
+*.pt
+*.pth
+*.h5
